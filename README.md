@@ -67,6 +67,12 @@ client's bug. `infra/prometheus/rules.yml` fires on `failed` only.
    `histogram_quantile` has nothing to interpolate. It heals as samples accumulate; a dashboard that shows
    `NaN` on a fresh deploy is not broken, it is young.
 
+4. **The first run of this repository's CI failed on a stack that was working.** The job asked Jaeger once,
+   immediately after the last request, and the honest answer at that moment is "nothing yet": the collector
+   batches for a second, Jaeger indexes a second after that, Prometheus needs a scrape. Telemetry is
+   eventually consistent, so the job now retries — an assertion with no tolerance for lag is an assertion
+   that measures the runner.
+
 ## Tests
 
 The telemetry goes through providers rather than being created inline — that is the whole reason the tests

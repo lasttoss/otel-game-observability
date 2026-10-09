@@ -37,17 +37,37 @@ jobs:
           go-version-file: go.mod
       - run: make up
       - run: make demo
+      # A telemetry pipeline is eventually consistent: the collector batches, Jaeger indexes, Prometheus
+      # scrapes. Asserting once is asserting against the runner's speed - the first version of this job
+      # failed exactly there, on a stack that was working.
       - name: a play session is a trace with the match on it
         run: |
           set -euo pipefail
-          make traces
-          curl -fsS "http://localhost:16686/api/traces?service=gameserver&limit=10" \
-            | python3 -c "import sys,json;d=json.load(sys.stdin)['data'];assert d, 'no traces';assert any(x['key']=='game.match.id' for t in d for s in t['spans'] for x in s['tags']), 'traces carry no match id';print(len(d),'traces, all with the match on them')"
+          assert_trace() {
+            curl -fsS "http://localhost:16686/api/traces?service=gameserver&limit=10" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)['data']
+assert d, 'Jaeger returned no traces'
+with_id = [t for t in d if any(x['key'] == 'game.match.id' for s in t['spans'] for x in s['tags'])]
+assert with_id, 'no trace carries the match id'
+print(len(d), 'traces,', len(with_id), 'with the match on them')"
+          }
+          until assert_trace; do
+            echo "waiting for the batch, the index and the scrape to catch up"; sleep 5
+          done
       - name: the metrics are being scraped
         run: |
           set -euo pipefail
-          curl -fsS "http://localhost:9090/api/v1/targets" \
-            | python3 -c "import sys,json;t=json.load(sys.stdin)['data']['activeTargets'];bad=[x['labels']['job'] for x in t if x['health']!='up'];assert not bad, bad;print('targets up:', [x['labels']['job'] for x in t])"
+          targets_up() {
+            curl -fsS "http://localhost:9090/api/v1/targets" | python3 -c "
+import sys, json
+t = json.load(sys.stdin)['data']['activeTargets']
+bad = [x['labels']['job'] for x in t if x['health'] != 'up']
+assert t, 'Prometheus knows no targets'
+assert not bad, 'down: ' + ', '.join(bad)
+print('targets up:', [x['labels']['job'] for x in t])"
+          }
+          until targets_up; do sleep 5; done
       - if: always()
         run: docker compose logs --tail=40
       - if: always()
