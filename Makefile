@@ -1,4 +1,4 @@
-.PHONY: up down logs demo traces assert test check
+.PHONY: up down logs demo traces assert test check diagram
 
 # The whole stack, from a clean checkout, in one command.
 up:
@@ -41,3 +41,8 @@ check:
 	go vet ./...
 	go test -race -count=1 ./...
 	docker compose config -q
+
+# Sources are HTML and Mermaid; a PNG is a build artifact. No browser is needed to read them.
+diagram:
+	@if command -v chromium >/dev/null 2>&1; then B=chromium; elif command -v google-chrome >/dev/null 2>&1; then B=google-chrome; else echo "no chromium on PATH: open docs/diagrams/*.html in a browser"; exit 0; fi; \
+	for f in docs/diagrams/*.html; do $$B --headless --screenshot="$${f%.html}.png" --window-size=1200,1000 "$$f" && echo "wrote $${f%.html}.png"; done

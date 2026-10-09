@@ -1,0 +1,17 @@
+%% Source for docs/diagrams/one-step-sequence.html
+%% One step of one match: a span to Jaeger over OTLP, and the metrics a dashboard is built from.
+sequenceDiagram
+  participant C as client
+  participant G as gameserver :8080
+  participant O as otel-collector :4317
+  participant J as Jaeger :16686
+  participant P as Prometheus :9090
+  C->>G: POST /v1/play {match_id, player_id, action}
+  Note over G: span "play" starts<br/>game.match.id · game.player.id · game.action
+  G->>G: step the match
+  G-->>C: 200 ok · 400 rejected · 500 failed
+  Note over G: span ends · metrics recorded (outcome label)
+  G-)O: OTLP gRPC (batch timeout 1s)
+  O-)J: otlp exporter
+  P->>G: GET /metrics every 5s
+  Note over P: rate() → the four alert rules

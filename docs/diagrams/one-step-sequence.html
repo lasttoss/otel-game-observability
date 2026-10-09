@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>One step of one match, and where it goes</title>
+<style>
+  :root { --ink:#151412; --paper:#f7f4ee; --rule:#cfc7b8; --red:#b3261e; --green:#1a6b3c; --amber:#8a5a00; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+         font:16px/1.5 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; }
+  .sheet { max-width:1080px; margin:0 auto; padding:56px 40px 72px; }
+  .kicker { font:600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing:.14em;
+            text-transform:uppercase; color:var(--amber); }
+  h1 { font-size:38px; line-height:1.15; margin:.35em 0 .2em; letter-spacing:-.01em; }
+  .dek { font-size:19px; color:#463f36; max-width:76ch; margin:0 0 8px; }
+  .meta { font:12px/1.6 ui-monospace, Menlo, monospace; color:#6b6357; border-top:1px solid var(--rule);
+          padding-top:10px; margin-top:22px; }
+  svg { display:block; width:100%; height:auto; margin:34px 0 0; }
+  .pairs { display:grid; grid-template-columns:1fr 1fr; gap:26px; margin-top:34px; }
+  .card { border-left:4px solid var(--ink); padding:14px 0 14px 18px; background:#fffdf8; }
+  .card b { display:block; font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin-bottom:6px; }
+  .card p { margin:0; font-size:17px; } .card p + p { margin-top:7px; }
+  footer { margin-top:38px; font:12px/1.7 ui-monospace, Menlo, monospace; color:#6b6357;
+           border-top:1px solid var(--rule); padding-top:12px; }
+  text { font-family:"Iowan Old Style", Palatino, Georgia, serif; }
+  .mono { font-family:ui-monospace, Menlo, monospace; }
+</style>
+<div class="sheet">
+  <div class="kicker">Runtime · otel-game-observability</div>
+  <h1>One step of one match, and where it goes</h1>
+  <p class="dek">A player moves. The server records a span that says which match and which player, exports
+    it over OTLP to a collector that batches it into Jaeger, and exposes the numbers Prometheus pulls — so
+    the same request answers "what happened" and "how often".</p>
+  <div class="meta">measured: 30 traces, 29 carrying the match id · p99 of a step 0.99 µs at 4.18 steps/s ·
+    both scrape targets up · 4 alert rules loaded</div>
+
+  <svg viewBox="0 0 1040 560" role="img" aria-label="A sequence: client to gameserver to a span, the response, OTLP to the collector, the collector to Jaeger, and Prometheus pulling metrics with the alert rules on top">
+    <defs>
+      <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#151412"/></marker>
+      <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#1a6b3c"/></marker>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#b3261e"/></marker>
+      <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#8a5a00"/></marker>
+    </defs>
+
+    <!-- lanes -->
+    <rect x="20" y="34" width="200" height="52" rx="4" fill="#fffdf8" stroke="#151412"/>
+    <text x="34" y="58" font-size="13" font-weight="600">client</text>
+    <text x="34" y="76" font-size="11" class="mono">POST /v1/play</text>
+
+    <rect x="260" y="34" width="240" height="52" rx="4" fill="#eef5ef" stroke="#1a6b3c" stroke-width="2"/>
+    <text x="274" y="58" font-size="13" font-weight="600">gameserver</text>
+    <text x="274" y="76" font-size="11" class="mono">:8080 · /metrics · /healthz</text>
+
+    <rect x="560" y="34" width="200" height="52" rx="4" fill="#fffdf8" stroke="#151412"/>
+    <text x="574" y="58" font-size="13" font-weight="600">otel-collector</text>
+    <text x="574" y="76" font-size="11" class="mono">:4317 OTLP · batch 1s</text>
+
+    <rect x="820" y="34" width="200" height="52" rx="4" fill="#fffdf8" stroke="#151412"/>
+    <text x="834" y="58" font-size="13" font-weight="600">Jaeger</text>
+    <text x="834" y="76" font-size="11" class="mono">:16686 · the trace</text>
+
+    <!-- lifelines -->
+    <line x1="120" y1="86" x2="120" y2="300" stroke="#cfc7b8" stroke-dasharray="4 5"/>
+    <line x1="380" y1="86" x2="380" y2="300" stroke="#1a6b3c" stroke-dasharray="4 5"/>
+    <line x1="660" y1="86" x2="660" y2="300" stroke="#cfc7b8" stroke-dasharray="4 5"/>
+    <line x1="920" y1="86" x2="920" y2="300" stroke="#cfc7b8" stroke-dasharray="4 5"/>
+
+    <!-- steps -->
+    <path d="M120 118 L380 118" stroke="#151412" stroke-width="2" marker-end="url(#a)"/>
+    <text x="128" y="112" font-size="12" class="mono">1 · the request: match, player, action</text>
+
+    <rect x="252" y="132" width="256" height="52" rx="3" fill="#eef5ef" stroke="#1a6b3c"/>
+    <text x="264" y="152" font-size="12" class="mono">2 · span "play" starts</text>
+    <text x="264" y="170" font-size="11" class="mono">game.match.id · game.player.id</text>
+
+    <path d="M380 208 L380 232" stroke="#151412" stroke-width="2" marker-end="url(#a)"/>
+    <text x="392" y="226" font-size="12" class="mono">3 · step the match</text>
+
+    <path d="M380 252 L120 252" stroke="#151412" stroke-width="2" marker-end="url(#a)"/>
+    <text x="132" y="246" font-size="12" class="mono">4 · 200 accepted · 400 rejected · 500 failed</text>
+    <path d="M120 276 L380 276" stroke="#8a5a00" stroke-width="2" marker-end="url(#ao)"/>
+    <text x="132" y="292" font-size="12" class="mono" fill="#8a5a00">5 · the span ends · metrics recorded per outcome</text>
+
+    <path d="M660 214 L920 214" stroke="#1a6b3c" stroke-width="2" marker-end="url(#ag)"/>
+    <text x="668" y="208" font-size="12" class="mono" fill="#1a6b3c">6 · OTLP, one batch a second</text>
+    <text x="668" y="232" font-size="11" class="mono" fill="#6b6357">the app names no backend</text>
+
+    <!-- pull -->
+    <rect x="20" y="318" width="1000" height="52" rx="4" fill="#fffdf8" stroke="#8a5a00"/>
+    <path d="M700 344 L420 344" stroke="#8a5a00" stroke-width="2" marker-end="url(#ao)"/>
+    <text x="34" y="340" font-size="12" class="mono" fill="#8a5a00">Prometheus pulls /metrics every 5 s → rate() over 5 m → the four alert rules</text>
+    <text x="34" y="360" font-size="11" class="mono" fill="#6b6357">a pull survives a pod that cannot reach the network; a push does not</text>
+
+    <!-- two cards -->
+    <rect x="20" y="392" width="490" height="118" rx="4" fill="#fdeeed" stroke="#b3261e"/>
+    <text x="36" y="418" font-size="14" font-weight="600" fill="#b3261e">A 400 is not a 500</text>
+    <text x="36" y="442" font-size="13">A match that is full, or a player who is not in it, is</text>
+    <text x="36" y="462" font-size="13">the client's bug: counted as invalid, no error span,</text>
+    <text x="36" y="482" font-size="13">and no page at 3 a.m. Only failures fire the alert.</text>
+
+    <rect x="530" y="392" width="490" height="118" rx="4" fill="#eef5ef" stroke="#1a6b3c"/>
+    <text x="546" y="418" font-size="14" font-weight="600" fill="#1a6b3c">A health check makes no span</text>
+    <text x="546" y="442" font-size="13">/healthz answers without tracing on purpose: a probe</text>
+    <text x="546" y="462" font-size="13">every five seconds across a fleet is more spans than</text>
+    <text x="546" y="482" font-size="13">the traffic, and it drowns the session worth reading.</text>
+
+    <rect x="20" y="524" width="1000" height="30" rx="4" fill="#fffdf8" stroke="#cfc7b8"/>
+    <text x="36" y="544" font-size="12" class="mono" fill="#6b6357">30 traces · 29 carry game.match.id · p99 0.99 µs · 4.18 steps/s · targets gameserver + otel-collector up</text>
+  </svg>
+
+  <div class="pairs">
+    <div class="card">
+      <b>The span is the question, the metric is the count</b>
+      <p>"Which match was slow" is answered by the trace, because the match and the player are on it.
+        "Is this happening more than yesterday" is answered by the counter. A dashboard built on one of them
+        alone sends the reader to the wrong tool.</p>
+    </div>
+    <div class="card">
+      <b>Why the collector is a separate container</b>
+      <p>The application speaks OTLP and names no backend, so moving traces from Jaeger to Tempo is a line in
+        a config file rather than a redeploy — and the batching, the memory limit and the retries live where
+        they can be tuned without touching the game.</p>
+    </div>
+  </div>
+
+  <footer>
+    Sources: docs/diagrams/one-step-sequence.mmd for the Mermaid version, gameserver.go for the span and the
+    instruments, infra/otel-collector.yaml for the pipeline, infra/prometheus/rules.yml for the alerts.
+    `make diagram` exports a PNG if a browser is present.
+  </footer>
+</div>
+</html>

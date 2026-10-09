@@ -93,3 +93,13 @@ Not a product and not a benchmark. There is no sampling configuration beyond the
 tail-based sampling, no SLO burn-rate alerts, and no Kubernetes manifests — those are
 [`k8s-game-server-charts`](https://github.com/lasttoss/k8s-game-server-charts). The game logic is a
 `matchStore` with a mutex, in `cmd/gameserver/main.go`, and it is there to be replaced.
+
+## One step, in sequence
+
+`docs/diagrams/one-step-sequence.html` draws the path behind the numbers in this README: a request makes a
+span that carries the match, the player and the action; the span leaves over OTLP to a collector that
+batches it into Jaeger; and the same request has already been counted in metrics that Prometheus pulls
+every five seconds, which is what the four alert rules are computed from.
+
+`docs/diagrams/one-step-sequence.mmd` is the Mermaid version. `make diagram` exports a PNG if a browser is
+present — the sources are what gets reviewed, the image is a build artifact.
