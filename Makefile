@@ -1,4 +1,4 @@
-.PHONY: up down logs demo traces test check
+.PHONY: up down logs demo traces assert test check
 
 # The whole stack, from a clean checkout, in one command.
 up:
@@ -27,6 +27,11 @@ demo:
 traces:
 	@curl -fsS "http://localhost:16686/api/traces?service=gameserver&limit=5&lookback=1h" \
 	  | python3 -c "import sys,json; d=json.load(sys.stdin); ts=d['data']; print(len(ts),'traces'); [print(' ', t['traceID'][:16], t['spans'][0]['operationName'], t['spans'][0]['duration'],'us') for t in ts[:5]]"
+
+# The same assertion CI runs, so a local stack can be asked the same question. Ports can be moved with
+# JAEGER_URL / PROMETHEUS_URL, and the retry budget with ATTEMPTS / DELAY.
+assert:
+	python3 scripts/check-telemetry.py
 
 test:
 	go test -race -count=1 ./...
