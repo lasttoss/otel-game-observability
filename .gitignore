@@ -1,0 +1,5 @@
+otel-game-observability
+/tmp/
+.env
+*.out
+coverage.out

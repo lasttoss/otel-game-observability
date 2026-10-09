@@ -117,16 +117,15 @@ func (s Server) handlePlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.MatchID == "" || req.PlayerID == "" {
-		// The attributes are what make a trace findable: "which match was slow" is a question a trace
-		// without ids cannot answer.
+		// Set before rejecting, not after: the request that gets a 400 is exactly the one somebody will
+		// want to trace back to a client, and a span that dropped the match id cannot say who sent it.
+		setRequestAttributes(span, req)
 		span.SetStatus(codes.Error, "match_id and player_id are required")
 		s.record(ctx, started, req, "invalid", 0, 0)
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "match_id and player_id are required"})
 		return
 	}
-	span.SetAttributes(attribute.String("game.match.id", req.MatchID),
-		attribute.String("game.player.id", req.PlayerID),
-		attribute.String("game.action", req.Action))
+	setRequestAttributes(span, req)
 
 	response, err := s.Step(ctx, req)
 	if err != nil {
@@ -147,6 +146,20 @@ func (s Server) handlePlay(w http.ResponseWriter, r *http.Request) {
 		attribute.Int("game.match.players", response.Players))
 	s.record(ctx, started, req, "ok", response.Players, response.Step)
 	writeJSON(w, http.StatusOK, response)
+}
+
+// setRequestAttributes puts on the span whatever the client sent. Only what is present: an attribute whose
+// value is the empty string is a field that looks answered and is not.
+func setRequestAttributes(span trace.Span, req PlayRequest) {
+	for key, value := range map[string]string{
+		"game.match.id":  req.MatchID,
+		"game.player.id": req.PlayerID,
+		"game.action":    req.Action,
+	} {
+		if value != "" {
+			span.SetAttributes(attribute.String(key, value))
+		}
+	}
 }
 
 // record is the one place a step becomes a metric, so that the outcome a span recorded and the outcome a

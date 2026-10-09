@@ -1,0 +1,70 @@
+{
+  "uid": "game-server",
+  "title": "Game server",
+  "tags": ["gameserver", "otel"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Match steps served, by outcome",
+      "description": "ok is players playing. failed is a page. invalid is a client sending nonsense and is not a page - if this panel and the failed panel are added together at three in the morning, somebody gets woken for somebody else's bug.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum by (outcome) (rate(gameserver_plays_total[1m]))", "legendFormat": "{{outcome}}" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Match step duration, p50 / p95 / p99",
+      "description": "The tick budget is 33ms. A mean hides the player who sees every hundredth step lag.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.50, sum by (le) (rate(gameserver_play_duration_milliseconds_bucket[5m])))", "legendFormat": "p50" },
+        { "refId": "B", "expr": "histogram_quantile(0.95, sum by (le) (rate(gameserver_play_duration_milliseconds_bucket[5m])))", "legendFormat": "p95" },
+        { "refId": "C", "expr": "histogram_quantile(0.99, sum by (le) (rate(gameserver_play_duration_milliseconds_bucket[5m])))", "legendFormat": "p99" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "custom": { "thresholdsStyle": { "mode": "line" } } },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Players per match (p50 / p99)",
+      "description": "The number capacity planning actually needs: CPU is a proxy for it, and a poor one.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.50, sum by (le) (rate(gameserver_match_players_bucket[5m])))", "legendFormat": "p50" },
+        { "refId": "B", "expr": "histogram_quantile(0.99, sum by (le) (rate(gameserver_match_players_bucket[5m])))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Step failure ratio vs the alert threshold (2%)",
+      "description": "Alerts as code live in infra/prometheus/rules.yml, so this panel is the same expression the alert fires on.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(gameserver_plays_total{outcome=\"failed\"}[5m])) / clamp_min(sum(rate(gameserver_plays_total[5m])), 0.001)",
+          "legendFormat": "failing"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit" },
+        "overrides": []
+      }
+    }
+  ]
+}

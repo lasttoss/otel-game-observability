@@ -138,6 +138,11 @@ func TestAPayloadWithNoPlayerIsA400AndASpanThatSaysWhy(t *testing.T) {
 	if count(t, h.metrics(t), "gameserver.plays", "invalid") != 1 {
 		t.Error("the rejected request is not in the play counter as invalid")
 	}
+	// The request that gets a 400 is the one somebody will want to trace back to a client, so the span
+	// has to keep what the client actually sent.
+	if got := attr(h.spans.GetSpans()[0].Attributes, "game.match.id"); got != "m-1" {
+		t.Errorf("the rejected span does not carry the match id: %q", got)
+	}
 }
 
 // A step the game refused is the client's problem and must not look like a server failure on a dashboard:

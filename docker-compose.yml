@@ -1,0 +1,79 @@
+# One command for the whole story: a game server, a collector, a trace backend and the metrics that go with
+# it. Anything a reader has to assemble by hand is a reader who does not see the point.
+name: otel-game-observability
+
+services:
+  gameserver:
+    build: .
+    environment:
+      ADDR: ":8080"
+      OTEL_SERVICE_NAME: gameserver
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      DEPLOYMENT_ENVIRONMENT: local
+    ports:
+      # 18080 rather than 8080: every laptop already has something on 8080, and a stack that will not
+      # start is a stack that does not get read.
+      - "18081:8080"
+    depends_on:
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  otel-collector:
+    # Pinned: an unpinned collector turns a Tuesday afternoon into a debugging session about somebody
+    # else's release notes.
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./infra/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317" # OTLP gRPC, where the application sends spans
+      - "4318:4318" # OTLP HTTP, for a curl-shaped experiment
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "components"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true" # the collector speaks OTLP, so Jaeger has to
+    ports:
+      - "16686:16686" # the UI where a trace of one play session is read
+      - "4319:4317"   # Jaeger's own OTLP port, on the host, for experiments without the collector
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2h
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/rules.yml:/etc/prometheus/rules/rules.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - gameserver
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      # Anonymous admin on a laptop stack: the alternative is a password in a README, and a stack nobody
+      # can open is a stack nobody looks at.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_DEFAULT_THEME: dark
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "13000:3000"
+    depends_on:
+      - prometheus
+      - jaeger

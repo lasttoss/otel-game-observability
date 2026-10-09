@@ -1,0 +1,48 @@
+# Alerts as code, in the repository, because an alert that lives in a UI is an alert nobody reviews.
+groups:
+  - name: gameserver
+    rules:
+      # A game server that is up but serving no steps is down as far as players are concerned. This is the
+      # alert that catches the process that answers /healthz and does nothing else.
+      - alert: GameServerServingNoSteps
+        expr: sum(rate(gameserver_plays_total[2m])) == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "the game server is up but has served no match step in two minutes"
+          runbook: "check the traces for the last minute before the drop, then the deploy history"
+
+      # Failures, not rejections: a client sending a bad payload is not a page.
+      - alert: GameServerStepFailureRate
+        expr: |
+          sum(rate(gameserver_plays_total{outcome="failed"}[5m]))
+            / clamp_min(sum(rate(gameserver_plays_total[5m])), 0.001) > 0.02
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "more than 2% of match steps are failing"
+          runbook: "the failing spans name the match and the player; start from the trace, not the log"
+
+      # The number a player feels. A mean would hide this: a p99 of a tick budget of 33ms is a player
+      # seeing the server lag every hundredth step.
+      - alert: GameServerStepLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(gameserver_play_duration_milliseconds_bucket[5m]))) > 33
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p99 of a match step is over the 33ms tick budget"
+          runbook: "break the trace down by action; one slow action is a different bug from all of them"
+
+      # Telemetry that stops arriving is telemetry that gets discovered missing during an incident.
+      - alert: GameServerTelemetrySilent
+        expr: up{job="gameserver"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus cannot scrape the game server"

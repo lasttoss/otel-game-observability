@@ -1,0 +1,55 @@
+# The collector is the seam: the application speaks OTLP and nothing else, so the place traces end up is a
+# config change here rather than a redeploy there.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Back pressure before the exporter: a collector that buffers without limit turns an unreachable backend
+  # into an OOM kill, which is a worse outage than dropped telemetry.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+  # Traces of a game session are worth reading while the session is going on, so the batch is small and the
+  # timeout short. Defaults (8s) are tuned for a tracing backend nobody is watching.
+  batch:
+    timeout: 1s
+    send_batch_size: 512
+
+exporters:
+  # OTLP all the way to Jaeger rather than the Jaeger exporter: that exporter is deprecated and gone in
+  # current collector builds, and OTLP is the protocol both ends already speak.
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+  debug:
+    verbosity: basic
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  # The collector's own metrics are the only way to see a pipeline that is up but dropping everything, and
+  # the default binds them to localhost - which, in a compose network, is a target Prometheus can never
+  # reach. An 'up == 0' alert on a scrape job that can never succeed is worse than no alert at all.
+  telemetry:
+    metrics:
+      level: normal
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/jaeger]
