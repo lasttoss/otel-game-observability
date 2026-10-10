@@ -96,30 +96,28 @@ tail-based sampling, no SLO burn-rate alerts, and no Kubernetes manifests — th
 
 ## One step, in sequence
 
-```mermaid
-%% Source for docs/diagrams/one-step-sequence.html
-%% One step of one match: a span to Jaeger over OTLP, and the metrics a dashboard is built from.
-sequenceDiagram
-  participant C as client
-  participant G as gameserver :8080
-  participant O as otel-collector :4317
-  participant J as Jaeger :16686
-  participant P as Prometheus :9090
-  C->>G: POST /v1/play {match_id, player_id, action}
-  Note over G: span "play" starts<br/>game.match.id · game.player.id · game.action
-  G->>G: step the match
-  G-->>C: 200 ok · 400 rejected · 500 failed
-  Note over G: span ends · metrics recorded (outcome label)
-  G-)O: OTLP gRPC (batch timeout 1s)
-  O-)J: otlp exporter
-  P->>G: GET /metrics every 5s
-  Note over P: rate() → the four alert rules
-```
+![A sequence: client to gameserver to a span, the response, OTLP to the collector, the collector to Jaeger, and Prometheus pulling metrics with the alert rules on top](docs/figures/one-step-sequence.png)
 
-`docs/diagrams/one-step-sequence.html` draws the path behind the numbers in this README: a request makes a
+**Figure 1.** One step of one match, and where it goes
+
+`docs/figures/one-step-sequence.html` draws the path behind the numbers in this README: a request makes a
 span that carries the match, the player and the action; the span leaves over OTLP to a collector that
 batches it into Jaeger; and the same request has already been counted in metrics that Prometheus pulls
 every five seconds, which is what the four alert rules are computed from.
 
-`docs/diagrams/one-step-sequence.mmd` is the Mermaid version. `make diagram` exports a PNG if a browser is
+`make diagram` exports a PNG if a browser is
 present — the sources are what gets reviewed, the image is a build artifact.
+
+## Repository standard
+
+Six items, applied where they mean something rather than everywhere. The exclusions are the point of
+the table: an item that cannot be honest in a repository of this kind is left out and said so.
+
+| Item | Here |
+|---|---|
+| `docker-compose.yml` | ✓ `docker-compose.yml` |
+| `Dockerfile` | ✓ `Dockerfile` |
+| Helm chart | not applicable - the five containers are a demo stack run by compose; charting the app alone would drop the collector, Jaeger, Prometheus and Grafana that this repository exists to show |
+| Diagram | ✓ `docs/figures/one-step-sequence.html` plus the exported PNG the README embeds |
+| Tests, run in CI | ✓ check the alert rules, check the compose file, bring the stack up, play a session |
+| CI + `Makefile` | ✓ `.github/workflows/ci.yml` and `Makefile` |
