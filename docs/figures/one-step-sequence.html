@@ -1,7 +1,8 @@
+<!-- diagram-meta {"topic": "one-step-sequence", "level": "runtime", "type": "runtime", "question": "One step of one match, and where it goes", "sources": ["gameserver.go", "infra/otel-collector.yaml", "infra/prometheus/prometheus.yml"], "updated": "2026-10-09"} -->
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8">
-<title>One step of one match, and where it goes</title>
+
 <style>
   :root { --ink:#151412; --paper:#f7f4ee; --rule:#cfc7b8; --red:#b3261e; --green:#1a6b3c; --amber:#8a5a00; }
   * { box-sizing:border-box; }
@@ -33,9 +34,9 @@
   <div class="meta">measured: 30 traces, 29 carrying the match id · p99 of a step 0.99 µs at 4.18 steps/s ·
     both scrape targets up · 4 alert rules loaded</div>
 
-  <svg viewBox="0 0 1040 560" role="img" aria-label="A sequence: client to gameserver to a span, the response, OTLP to the collector, the collector to Jaeger, and Prometheus pulling metrics with the alert rules on top">
-    <defs>
-      <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+  <svg viewBox="0 0 1040 560" role="img" aria-label="A se<svg viewBox="0 0 1040 560" role="img" aria-labelledby="one-step-sequence-title one-step-sequence-desc">
+        <title id="one-step-sequence-title">One step of one match, and where it goes</title>
+        <desc id="one-step-sequence-desc">A sequence: client to gameserver to a span, the response, OTLP to the collector, the collector to Jaeger, and Prometheus pulling metrics with the alert rules on top</desc>fX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
         <path d="M0 0 L10 5 L0 10 z" fill="#151412"/></marker>
       <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
         <path d="M0 0 L10 5 L0 10 z" fill="#1a6b3c"/></marker>
