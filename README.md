@@ -5,6 +5,8 @@ stack that reads it — collector, Jaeger, Prometheus, Grafana — in one `make 
 
 The claim this repository makes is specific and is checked against the running stack, not asserted here:
 
+The panels this stack is supposed to answer an incident with are written down in [`docs/incident-metrics.md`](docs/incident-metrics.md) — including a connection count that must be flat and a cgroup reading that a node graph cannot show.
+
 > **Every step of a match is one span, and that span carries the match, the player and the action, so that a
 > question like "which match was slow" has an answer in a trace instead of a log grep.**
 
