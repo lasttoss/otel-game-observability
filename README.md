@@ -1,5 +1,7 @@
 # otel-game-observability
 
+[![ci](https://github.com/lasttoss/otel-game-observability/actions/workflows/ci.yml/badge.svg)](https://github.com/lasttoss/otel-game-observability/actions/workflows/ci.yml)
+
 A game backend small enough to read in one sitting, instrumented the way a real one has to be, with the
 stack that reads it — collector, Jaeger, Prometheus, Grafana — in one `make up`.
 
